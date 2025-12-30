@@ -254,6 +254,19 @@ Matplotlib/Seaborn backend, set the environment variable:
 
     $ QS_PLOT_BACKEND=matplotlib python your_script.py
 
+When generating HTML reports with hvPlot, you can choose online (CDN) or
+offline (inline) Bokeh resources:
+
+.. code:: python
+
+    qs.reports.html(returns, output="report.html", bokeh_resources="inline")
+
+hvPlot plots also support ``savefig`` for writing files via HoloViews:
+
+.. code:: python
+
+    qs.plots.returns(returns, savefig="returns.html", show=False)
+
 To install optional Matplotlib/Seaborn dependencies with uv:
 
 .. code:: bash

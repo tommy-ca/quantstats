@@ -29,7 +29,43 @@ def _ensure_hvplot():
     return _HV
 
 
-def bokeh_resources() -> str:
+def _finalize_plot(plot_obj, savefig, show):
+    if savefig:
+        _save_hvplot(plot_obj, savefig)
+    if show:
+        return None
+    return plot_obj
+
+
+def _save_hvplot(plot_obj, savefig):
+    hv = _ensure_hvplot()
+    filename = None
+    fmt = None
+    resources = "inline"
+    if isinstance(savefig, dict):
+        filename = (
+            savefig.get("fname")
+            or savefig.get("filename")
+            or savefig.get("path")
+            or savefig.get("file")
+        )
+        fmt = savefig.get("format") or savefig.get("fmt")
+        resources = savefig.get("resources", "inline")
+    else:
+        filename = savefig
+    if filename is None:
+        raise ValueError("hvplot savefig requires a filename")
+    if hasattr(filename, "write"):
+        raise ValueError("hvplot savefig requires a filesystem path")
+    hv.save(plot_obj, filename, fmt=fmt, backend="bokeh", resources=resources)
+
+
+def bokeh_resources(mode="online") -> str:
+    mode = (mode or "online").lower()
+    if mode in {"inline", "offline"}:
+        from bokeh.resources import INLINE
+
+        return INLINE.render()
     from bokeh.resources import CDN
 
     return CDN.render()
@@ -131,7 +167,7 @@ def snapshot(
     layout = hv.Layout([cum_plot, dd_plot, daily_plot]).cols(1)
     if log_scale:
         layout = layout.opts(logy=True)
-    return layout
+    return _finalize_plot(layout, savefig, show)
 
 
 def earnings(
@@ -150,7 +186,8 @@ def earnings(
     _ensure_hvplot()
     series = _utils.make_portfolio(returns, start_balance, mode)
     data = _as_dataframe(series, "Value")
-    return data.hvplot.line(title=title, ylabel="Value")
+    plot = data.hvplot.line(title=title, ylabel="Value")
+    return _finalize_plot(plot, savefig, show)
 
 
 def returns(
@@ -190,7 +227,8 @@ def returns(
 
     data = _as_dataframe(returns, "Strategy")
     data = _join_benchmark(data, benchmark)
-    return data.hvplot.line(title=title, ylabel=ylabel)
+    plot = data.hvplot.line(title=title, ylabel=ylabel)
+    return _finalize_plot(plot, savefig, show)
 
 
 def log_returns(
@@ -232,7 +270,8 @@ def log_returns(
     )
     data = _as_dataframe(returns, "Strategy")
     data = _join_benchmark(data, benchmark)
-    return data.hvplot.line(title=title, ylabel=ylabel, logy=True)
+    plot = data.hvplot.line(title=title, ylabel=ylabel, logy=True)
+    return _finalize_plot(plot, savefig, show)
 
 
 def daily_returns(
@@ -268,7 +307,8 @@ def daily_returns(
         match_volatility=False,
     )
     data = _as_dataframe(returns, "Returns")
-    return data.hvplot.line(title=plot_title, ylabel=ylabel, logy=log_scale)
+    plot = data.hvplot.line(title=plot_title, ylabel=ylabel, logy=log_scale)
+    return _finalize_plot(plot, savefig, show)
 
 
 def yearly_returns(
@@ -311,7 +351,8 @@ def yearly_returns(
     if isinstance(data.index, (_pd.DatetimeIndex, _pd.PeriodIndex)):
         data = data.copy()
         data.index = data.index.astype(str)
-    return data.hvplot.bar(title=title, ylabel="Returns")
+    plot = data.hvplot.bar(title=title, ylabel="Returns")
+    return _finalize_plot(plot, savefig, show)
 
 
 def distribution(
@@ -331,7 +372,8 @@ def distribution(
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
     data = _as_dataframe(returns, title or "Returns")
-    return data.hvplot.hist(title=title or "Returns Distribution", ylabel="Density")
+    plot = data.hvplot.hist(title=title or "Returns Distribution", ylabel="Density")
+    return _finalize_plot(plot, savefig, show)
 
 
 def histogram(
@@ -364,7 +406,8 @@ def histogram(
 
     data = _as_dataframe(returns, "Strategy")
     data = _join_benchmark(data, benchmark)
-    return data.hvplot.hist(title="Distribution of Returns", ylabel="Density")
+    plot = data.hvplot.hist(title="Distribution of Returns", ylabel="Density")
+    return _finalize_plot(plot, savefig, show)
 
 
 def drawdown(
@@ -385,7 +428,8 @@ def drawdown(
     _ensure_hvplot()
     dd = _stats.to_drawdown_series(returns)
     dd = _as_dataframe(dd, "Drawdown")
-    return dd.hvplot.area(title="Underwater Plot", ylabel=ylabel, logy=log_scale)
+    plot = dd.hvplot.area(title="Underwater Plot", ylabel=ylabel, logy=log_scale)
+    return _finalize_plot(plot, savefig, show)
 
 
 def drawdowns_periods(
@@ -418,7 +462,12 @@ def drawdowns_periods(
         col = f"DD {idx + 1}"
         data[col] = series.where((series.index >= start) & (series.index <= end))
 
-    return data.hvplot.line(title=title or "Worst Drawdown Periods", ylabel="Returns", logy=log_scale)
+    plot = data.hvplot.line(
+        title=title or "Worst Drawdown Periods",
+        ylabel="Returns",
+        logy=log_scale,
+    )
+    return _finalize_plot(plot, savefig, show)
 
 
 def rolling_beta(
@@ -459,7 +508,8 @@ def rolling_beta(
                 label = f"{col} ({window2_label or window2})"
                 data[label] = _stats.rolling_greeks(returns[col], benchmark, window2)["beta"].fillna(0)
 
-    return data.hvplot.line(title="Rolling Beta to Benchmark", ylabel="Beta")
+    plot = data.hvplot.line(title="Rolling Beta to Benchmark", ylabel="Beta")
+    return _finalize_plot(plot, savefig, show)
 
 
 def rolling_volatility(
@@ -484,7 +534,8 @@ def rolling_volatility(
         benchmark = _utils._prepare_benchmark(benchmark, returns.index)
         bench = _stats.rolling_volatility(benchmark, period, periods_per_year, prepare_returns=False)
         data = _join_benchmark(data, bench)
-    return data.hvplot.line(title=f"Rolling Volatility ({period_label})", ylabel=ylabel)
+    plot = data.hvplot.line(title=f"Rolling Volatility ({period_label})", ylabel=ylabel)
+    return _finalize_plot(plot, savefig, show)
 
 
 def rolling_sharpe(
@@ -510,7 +561,8 @@ def rolling_sharpe(
         benchmark = _utils._prepare_benchmark(benchmark, returns.index, rf)
         bench = _stats.rolling_sharpe(benchmark, rf, period, True, periods_per_year, prepare_returns=False)
         data = _join_benchmark(data, bench)
-    return data.hvplot.line(title=f"Rolling Sharpe ({period_label})", ylabel=ylabel)
+    plot = data.hvplot.line(title=f"Rolling Sharpe ({period_label})", ylabel=ylabel)
+    return _finalize_plot(plot, savefig, show)
 
 
 def rolling_sortino(
@@ -536,7 +588,8 @@ def rolling_sortino(
         benchmark = _utils._prepare_benchmark(benchmark, returns.index, rf)
         bench = _stats.rolling_sortino(benchmark, rf, period, True, periods_per_year, prepare_returns=False)
         data = _join_benchmark(data, bench)
-    return data.hvplot.line(title=f"Rolling Sortino ({period_label})", ylabel=ylabel)
+    plot = data.hvplot.line(title=f"Rolling Sortino ({period_label})", ylabel=ylabel)
+    return _finalize_plot(plot, savefig, show)
 
 
 def monthly_heatmap(
@@ -568,13 +621,14 @@ def monthly_heatmap(
     data = monthly.reset_index().melt(id_vars=year_col, var_name="Month", value_name="Return")
     data["Month"] = _pd.Categorical(data["Month"], categories=month_order, ordered=True)
 
-    return data.hvplot.heatmap(
+    plot = data.hvplot.heatmap(
         x="Month",
         y=year_col,
         C="Return",
         title=f"{returns_label} - Monthly Returns (%)",
         colorbar=cbar,
     )
+    return _finalize_plot(plot, savefig, show)
 
 
 def monthly_returns(

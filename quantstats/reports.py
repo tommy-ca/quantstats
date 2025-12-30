@@ -129,6 +129,7 @@ def html(
     download_filename="quantstats-tearsheet.html",
     figfmt="svg",
     template_path=None,
+    bokeh_resources="online",
     match_dates=True,
     **kwargs,
 ):
@@ -165,6 +166,9 @@ def html(
         Format for embedded charts ('svg', 'png', 'jpg')
     template_path : str or None, default None
         Path to custom HTML template file. Uses default if None
+    bokeh_resources : str, default "online"
+        Bokeh resource mode ("online"/"cdn" for external resources, "inline"/"offline"
+        to embed resources in the HTML output).
     match_dates : bool, default True
         Whether to align returns and benchmark start dates
     **kwargs
@@ -220,7 +224,9 @@ def html(
     tpl = template_path.read_text(encoding='utf-8')
 
     if _plotting_backend.is_hvplot():
-        tpl = tpl.replace("{{bokeh_resources}}", _hvplot_backend.bokeh_resources())
+        tpl = tpl.replace(
+            "{{bokeh_resources}}", _hvplot_backend.bokeh_resources(bokeh_resources)
+        )
     else:
         tpl = tpl.replace("{{bokeh_resources}}", "")
 

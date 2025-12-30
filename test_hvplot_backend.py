@@ -53,3 +53,13 @@ def test_hvplot_report_contains_bokeh_markers(tmp_path):
     assert "data-root-id" in html
     assert "Bokeh" in html
     assert "<script" in html
+
+
+def test_hvplot_savefig_writes_file(tmp_path):
+    qs = _load_quantstats("hvplot")
+    returns = _sample_returns()
+    out = tmp_path / "returns.html"
+
+    qs.plots.returns(returns, savefig=str(out), show=False)
+
+    assert out.exists()
