@@ -7,12 +7,12 @@
 
 ## Phase 2: Unit Tests for hvPlot Integration
 
-- [ ] Task: Create unit tests for core plots returning hvPlot objects
-  - [ ] Write Tests (Red Phase)
+- [~] Task: Create unit tests for core plots returning hvPlot objects
+  - [x] Write Tests (Red Phase) c23d500
   - [ ] Verify implementation (Green Phase)
-- [ ] Task: Ensure tests handle live `yfinance` data fetching
-  - [ ] Write Tests
-  - [ ] Implement robust data loading for tests
+- [x] Task: Ensure tests handle live `yfinance` data fetching c23d500
+  - [x] Write Tests c23d500
+  - [x] Implement robust data loading for tests c23d500
 - [ ] Task: Conductor - User Manual Verification 'Unit Tests for hvPlot Integration' (Protocol in workflow.md)
 
 ## Phase 3: E2E Tests for HTML Reports
