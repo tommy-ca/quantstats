@@ -19,3 +19,4 @@ CLAUDE.md
 quantstats/stats.py
 .DS_Store
 .claude/settings.local.json
+.venv
