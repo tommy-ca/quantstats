@@ -26,15 +26,24 @@ from base64 import b64encode as _b64encode
 import re as _regex
 from tabulate import tabulate as _tabulate
 from . import __version__, stats as _stats, utils as _utils, plots as _plots
+from ._plotting import backend as _plotting_backend
+from ._plotting import hvplot_backend as _hvplot_backend
 from dateutil.relativedelta import relativedelta
 from io import StringIO
 from pathlib import Path
 
 try:
     from IPython.core.display import display as iDisplay, HTML as iHTML
-except ImportError:
-    from IPython.display import display as iDisplay
-    from IPython.core.display import HTML as iHTML
+except Exception:
+    try:
+        from IPython.display import display as iDisplay
+        from IPython.core.display import HTML as iHTML
+    except Exception:
+        def iDisplay(*_args, **_kwargs):
+            return None
+
+        def iHTML(_html):
+            return _html
 
 
 def _get_trading_periods(periods_per_year=252):
@@ -210,6 +219,11 @@ def html(
     # Read template securely with UTF-8 encoding
     tpl = template_path.read_text(encoding='utf-8')
 
+    if _plotting_backend.is_hvplot():
+        tpl = tpl.replace("{{bokeh_resources}}", _hvplot_backend.bokeh_resources())
+    else:
+        tpl = tpl.replace("{{bokeh_resources}}", "")
+
     # prepare timeseries
     if match_dates:
         returns = returns.dropna()
@@ -378,6 +392,289 @@ def html(
 
     # Get active returns setting for plots
     active = kwargs.get("active_returns", False)
+
+    if _plotting_backend.is_hvplot():
+        hv = _hvplot_backend._ensure_hvplot()
+
+        tpl = tpl.replace(
+            "{{returns}}",
+            _embed_hvplot(
+                _plots.returns(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 5),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    compound=compounded,
+                    prepare_returns=False,
+                )
+            ),
+        )
+
+        tpl = tpl.replace(
+            "{{log_returns}}",
+            _embed_hvplot(
+                _plots.log_returns(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    compound=compounded,
+                    prepare_returns=False,
+                )
+            ),
+        )
+
+        if benchmark is not None:
+            tpl = tpl.replace(
+                "{{vol_returns}}",
+                _embed_hvplot(
+                    _plots.returns(
+                        returns,
+                        benchmark,
+                        match_volatility=True,
+                        grayscale=grayscale,
+                        figsize=(8, 4),
+                        subtitle=False,
+                        show=False,
+                        ylabel="",
+                        compound=compounded,
+                        prepare_returns=False,
+                    )
+                ),
+            )
+
+        tpl = tpl.replace(
+            "{{eoy_returns}}",
+            _embed_hvplot(
+                _plots.yearly_returns(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+            ),
+        )
+
+        tpl = tpl.replace(
+            "{{monthly_dist}}",
+            _embed_hvplot(
+                _plots.histogram(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(7, 4),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+            ),
+        )
+
+        tpl = tpl.replace(
+            "{{daily_returns}}",
+            _embed_hvplot(
+                _plots.daily_returns(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 3),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    prepare_returns=False,
+                    active=active,
+                )
+            ),
+        )
+
+        if benchmark is not None:
+            tpl = tpl.replace(
+                "{{rolling_beta}}",
+                _embed_hvplot(
+                    _plots.rolling_beta(
+                        returns,
+                        benchmark,
+                        grayscale=grayscale,
+                        figsize=(8, 3),
+                        subtitle=False,
+                        window1=win_half_year,
+                        window2=win_year,
+                        show=False,
+                        ylabel="",
+                        prepare_returns=False,
+                    )
+                ),
+            )
+
+        tpl = tpl.replace(
+            "{{rolling_vol}}",
+            _embed_hvplot(
+                _plots.rolling_volatility(
+                    returns,
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 3),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    period=win_half_year,
+                    periods_per_year=win_year,
+                )
+            ),
+        )
+
+        tpl = tpl.replace(
+            "{{rolling_sharpe}}",
+            _embed_hvplot(
+                _plots.rolling_sharpe(
+                    returns,
+                    grayscale=grayscale,
+                    figsize=(8, 3),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    period=win_half_year,
+                    periods_per_year=win_year,
+                )
+            ),
+        )
+
+        tpl = tpl.replace(
+            "{{rolling_sortino}}",
+            _embed_hvplot(
+                _plots.rolling_sortino(
+                    returns,
+                    grayscale=grayscale,
+                    figsize=(8, 3),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                    period=win_half_year,
+                    periods_per_year=win_year,
+                )
+            ),
+        )
+
+        if isinstance(returns, _pd.Series):
+            dd_plot = _plots.drawdowns_periods(
+                returns,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                subtitle=False,
+                title=returns.name,
+                show=False,
+                ylabel="",
+                compounded=compounded,
+                prepare_returns=False,
+            )
+            tpl = tpl.replace("{{dd_periods}}", _embed_hvplot(dd_plot))
+        else:
+            dd_plots = [
+                _plots.drawdowns_periods(
+                    returns[col],
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    title=col,
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+                for col in returns.columns
+            ]
+            tpl = tpl.replace(
+                "{{dd_periods}}", _embed_hvplot(hv.Layout(dd_plots).cols(1))
+            )
+
+        tpl = tpl.replace(
+            "{{dd_plot}}",
+            _embed_hvplot(
+                _plots.drawdown(
+                    returns,
+                    grayscale=grayscale,
+                    figsize=(8, 3),
+                    subtitle=False,
+                    show=False,
+                    ylabel="",
+                )
+            ),
+        )
+
+        if isinstance(returns, _pd.Series):
+            hm_plot = _plots.monthly_heatmap(
+                returns,
+                benchmark,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                cbar=False,
+                returns_label=returns.name,
+                show=False,
+                ylabel="",
+                compounded=compounded,
+                active=active,
+            )
+            tpl = tpl.replace("{{monthly_heatmap}}", _embed_hvplot(hm_plot))
+        else:
+            hm_plots = [
+                _plots.monthly_heatmap(
+                    returns[col],
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    cbar=False,
+                    returns_label=col,
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    active=active,
+                )
+                for col in returns.columns
+            ]
+            tpl = tpl.replace(
+                "{{monthly_heatmap}}", _embed_hvplot(hv.Layout(hm_plots).cols(1))
+            )
+
+        tpl = tpl.replace(
+            "{{returns_dist}}",
+            _embed_hvplot(
+                _plots.distribution(
+                    returns,
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    title=getattr(returns, "name", None),
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+            ),
+        )
+
+        tpl = _regex.sub(r"\{\{(.*?)\}\}", "", tpl)
+        tpl = tpl.replace("white-space:pre;", "")
+
+        if output is None:
+            _download_html(tpl, download_filename)
+            return
+
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(tpl)
+        return
 
     # Generate all the performance plots and embed them in the HTML
     # plots
@@ -871,7 +1168,8 @@ def full(
                     )
 
         print("\n\n")
-        print("[Strategy Visualization]\nvia Matplotlib")
+        backend_label = "hvPlot" if _plotting_backend.is_hvplot() else "Matplotlib"
+        print(f"[Strategy Visualization]\nvia {backend_label}")
 
     # Generate comprehensive plots
     plots(
@@ -1002,7 +1300,8 @@ def basic(
         )
 
         print("\n\n")
-        print("[Strategy Visualization]\nvia Matplotlib")
+        backend_label = "hvPlot" if _plotting_backend.is_hvplot() else "Matplotlib"
+        print(f"[Strategy Visualization]\nvia {backend_label}")
 
     # Generate basic plots
     plots(
@@ -2313,6 +2612,14 @@ def _open_html(html):
     # Execute JavaScript in notebook if in notebook environment
     if _utils._in_notebook():
         iDisplay(iHTML(jscode))
+
+
+def _embed_hvplot(plot_obj):
+    """
+    Embed hvPlot/HoloViews objects into HTML using Bokeh components.
+    """
+    script, div = _hvplot_backend.render_bokeh(plot_obj)
+    return f"{div}\n{script}"
 
 
 def _embed_figure(figfiles, figfmt):
