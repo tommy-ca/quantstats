@@ -3263,17 +3263,17 @@ def _embed_figure(figfiles, figfmt):
     """
     # Handle multiple figures
     if isinstance(figfiles, list):
-        embed_string = "\n"
+        embed_strings = []
         for figfile in figfiles:
             figbytes = figfile.getvalue()
             if figfmt == "svg":
-                # SVG can be embedded directly as text
-                return figbytes.decode()
-            # For other formats, encode as base64 data URI
-            data_uri = _b64encode(figbytes).decode()
-            embed_string.join(
-                '<img src="data:image/{};base64,{}" />'.format(figfmt, data_uri)
-            )
+                embed_strings.append(figbytes.decode())
+            else:
+                data_uri = _b64encode(figbytes).decode()
+                embed_strings.append(
+                    '<img src="data:image/{};base64,{}" />'.format(figfmt, data_uri)
+                )
+        return "\n".join(embed_strings)
     else:
         # Handle single figure
         figbytes = figfiles.getvalue()

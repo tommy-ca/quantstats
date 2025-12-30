@@ -63,3 +63,7 @@ def test_hvplot_savefig_writes_file(tmp_path):
     qs.plots.returns(returns, savefig=str(out), show=False)
 
     assert out.exists()
+
+    content = out.read_text()
+    assert "bokeh" in content.lower() or "holoviews" in content.lower()
+    assert len(content) > 0
