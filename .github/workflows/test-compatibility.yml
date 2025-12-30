@@ -61,11 +61,7 @@ jobs:
     
     - name: Run compatibility tests
       run: |
-        python test_fixes.py
-    
-    - name: Run pytest compatibility tests
-      run: |
-        pytest tests/test_compatibility.py -v
+        pytest tests/ -v
     
     - name: Test frequency aliases
       run: |
@@ -132,11 +128,7 @@ jobs:
     
     - name: Run compatibility tests with latest versions
       run: |
-        python test_fixes.py
-    
-    - name: Run pytest compatibility tests
-      run: |
-        pytest tests/test_compatibility.py -v
+        pytest tests/ -v
 
   test-python-313:
     runs-on: ubuntu-latest
@@ -164,8 +156,4 @@ jobs:
     
     - name: Run compatibility tests with Python 3.13
       run: |
-        python test_fixes.py
-    
-    - name: Run pytest compatibility tests
-      run: |
-        pytest tests/test_compatibility.py -v
+        pytest tests/ -v
