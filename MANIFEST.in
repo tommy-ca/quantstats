@@ -1,6 +1,8 @@
 # Include the license file
 include LICENSE.txt
 include requirements.txt
+include pyproject.toml
+include .python-version
 include quantstats/report.html
 
 # Include the data files

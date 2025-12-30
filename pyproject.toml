@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantstats"
+dynamic = ["version"]
+description = "Portfolio analytics for quants"
+readme = { file = "README.rst", content-type = "text/x-rst" }
+requires-python = ">=3.8"
+license = { file = "LICENSE.txt" }
+authors = [
+  { name = "Ran Aroussi", email = "ran@aroussi.com" },
+]
+keywords = [
+  "quant",
+  "algotrading",
+  "algorithmic-trading",
+  "quantitative-trading",
+  "quantitative-analysis",
+  "algo-trading",
+  "visualization",
+  "plotting",
+]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Development Status :: 5 - Production/Stable",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Science/Research",
+  "Topic :: Office/Business :: Financial",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "pandas>=1.5.0,<3.0.0",
+  "numpy>=1.21.0",
+  "scipy>=1.7.0",
+  "tabulate>=0.8.9",
+  "yfinance>=0.2.65",
+  "python-dateutil>=2.8.0",
+  "packaging>=20.0",
+  "hvplot>=0.8.0",
+  "beautifulsoup4>=4.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0.0",
+]
+mpl = [
+  "matplotlib>=3.3.0",
+  "seaborn>=0.11.0",
+]
+
+[project.scripts]
+sample = "sample:main"
+
+[project.urls]
+Homepage = "https://github.com/ranaroussi/quantstats"
+Changelog = "https://github.com/ranaroussi/quantstats/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = ["contrib", "docs", "tests", "examples"]
+
+[tool.setuptools.package-data]
+quantstats = ["report.html"]
+
+[tool.setuptools.dynamic]
+version = { attr = "quantstats.version.version" }
