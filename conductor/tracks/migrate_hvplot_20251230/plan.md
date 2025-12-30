@@ -2,7 +2,7 @@
 
 ## Phase 1: Preparation
 
-- [ ] Task: Update `requirements.txt` and `setup.py` to include `hvplot`
+- [x] Task: Update `requirements.txt` and `setup.py` to include `hvplot` ae6f0ee
 - [ ] Task: Conductor - User Manual Verification 'Preparation' (Protocol in workflow.md)
 
 ## Phase 2: Core Plotting Infrastructure
