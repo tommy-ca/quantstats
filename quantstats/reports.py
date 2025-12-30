@@ -39,6 +39,7 @@ except Exception:
         from IPython.display import display as iDisplay
         from IPython.core.display import HTML as iHTML
     except Exception:
+
         def iDisplay(*_args, **_kwargs):
             return None
 
@@ -208,7 +209,7 @@ def html(
     # Secure file path handling for HTML template
     if template_path is None:
         # Use default template path - report.html in same directory
-        template_path = Path(__file__).parent / 'report.html'
+        template_path = Path(__file__).parent / "report.html"
     else:
         template_path = Path(template_path)
 
@@ -221,7 +222,7 @@ def html(
         raise ValueError(f"Template path is not a file: {template_path}")
 
     # Read template securely with UTF-8 encoding
-    tpl = template_path.read_text(encoding='utf-8')
+    tpl = template_path.read_text(encoding="utf-8")
 
     if _plotting_backend.is_hvplot():
         tpl = tpl.replace(
@@ -255,6 +256,8 @@ def html(
                 benchmark_title = benchmark[benchmark.columns[0]].name
 
         # Update template with benchmark information
+        if benchmark_title is None:
+            benchmark_title = "Benchmark"
         tpl = tpl.replace(
             "{{benchmark_title}}", f"Benchmark is {benchmark_title.upper()} | "
         )
@@ -334,9 +337,15 @@ def html(
     if benchmark is not None:
         # Use original benchmark for EOY comparison to preserve accurate yearly returns
         # This prevents loss of benchmark returns on non-trading days
-        benchmark_for_eoy = benchmark_original if benchmark_original is not None else benchmark
+        benchmark_for_eoy = (
+            benchmark_original if benchmark_original is not None else benchmark
+        )
         yoy = _stats.compare(
-            returns, benchmark_for_eoy, "YE", compounded=compounded, prepare_returns=False
+            returns,
+            benchmark_for_eoy,
+            "YE",
+            compounded=compounded,
+            prepare_returns=False,
         )
         # Set appropriate column names based on data type
         if isinstance(returns, _pd.Series):
@@ -979,6 +988,528 @@ def html(
     # Write HTML content to specified output file
     with open(output, "w", encoding="utf-8") as f:
         f.write(tpl)
+
+
+def markdown(
+    returns,
+    benchmark=None,
+    rf=0.0,
+    grayscale=False,
+    title="Strategy Tearsheet",
+    output=None,
+    compounded=True,
+    periods_per_year=252,
+    download_filename="quantstats-tearsheet.md",
+    figfmt="png",
+    template_path=None,
+    match_dates=True,
+    embed_images=True,
+    **kwargs,
+):
+    """
+    Generate a markdown tearsheet report for portfolio performance analysis.
+
+    This function creates a comprehensive markdown report containing performance
+    metrics, visualizations, and analysis of investment returns. The report
+    includes comparisons with benchmarks, drawdown analysis, and various
+    performance charts in markdown format suitable for documentation.
+
+    Parameters
+    ----------
+    returns : pd.Series or pd.DataFrame
+        Daily returns data for the strategy/portfolio
+    benchmark : pd.Series, str, or None, default None
+        Benchmark returns for comparison. Can be a Series of returns,
+        a ticker symbol string, or None for no benchmark
+    rf : float, default 0.0
+        Risk-free rate for calculations (as decimal, e.g., 0.02 for 2%)
+    grayscale : bool, default False
+        Whether to generate charts in grayscale instead of color
+    title : str, default "Strategy Tearsheet"
+        Title to display at the top of the markdown report
+    output : str or None, default None
+        File path to save the markdown report. If None, returns string
+    compounded : bool, default True
+        Whether to compound returns for calculations
+    periods_per_year : int, default 252
+        Number of trading periods per year for annualization
+    download_filename : str, default "quantstats-tearsheet.md"
+        Filename for browser download if output is None
+    figfmt : str, default "png"
+        Format for embedded charts ('png', 'svg', 'jpg')
+    template_path : str or None, default None
+        Path to custom markdown template file. Uses default if None
+    match_dates : bool, default True
+        Whether to align returns and benchmark start dates
+    embed_images : bool, default True
+        Whether to embed images as base64 data URIs
+    **kwargs
+        Additional keyword arguments for customization:
+        - strategy_title: Custom name for the strategy
+        - benchmark_title: Custom name for the benchmark
+        - active_returns: Whether to show active returns vs benchmark
+
+    Returns
+    -------
+    str or None
+        Markdown content string when output is None, None when saved to file
+    """
+    # Force matplotlib backend for markdown reports
+    original_backend = _plotting_backend.get_backend()
+    _plotting_backend.set_backend("matplotlib")
+
+    try:
+        # Clean returns data by removing NaN values if date matching is enabled
+        if match_dates:
+            returns = returns.dropna()
+
+        # Get trading periods for calculations
+        win_year, win_half_year = _get_trading_periods(periods_per_year)
+
+        # Secure file path handling for markdown template
+        if template_path is None:
+            # Use default template path - report.md in same directory
+            template_path = Path(__file__).parent / "report.md"
+        else:
+            template_path = Path(template_path)
+
+        # Resolve to absolute path and validate template file existence
+        template_path = template_path.resolve()
+
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template file not found: {template_path}")
+        if not template_path.is_file():
+            raise ValueError(f"Template path is not a file: {template_path}")
+
+        # Read template securely with UTF-8 encoding
+        tpl = template_path.read_text(encoding="utf-8")
+
+        # prepare timeseries
+        if match_dates:
+            returns = returns.dropna()
+        # Clean and prepare returns data for analysis
+        returns = _utils._prepare_returns(returns)
+
+        # Handle strategy title - can be single string or list for multiple columns
+        strategy_title = kwargs.get("strategy_title", "Strategy")
+        if isinstance(returns, _pd.DataFrame):
+            if len(returns.columns) > 1 and isinstance(strategy_title, str):
+                strategy_title = list(returns.columns)
+
+        # Process benchmark data if provided
+        if benchmark is not None:
+            benchmark_title = kwargs.get("benchmark_title", "Benchmark")
+            # Auto-determine benchmark title if not provided
+            if kwargs.get("benchmark_title") is None:
+                if isinstance(benchmark, str):
+                    benchmark_title = benchmark
+                elif isinstance(benchmark, _pd.Series):
+                    benchmark_title = benchmark.name
+                elif isinstance(benchmark, _pd.DataFrame):
+                    benchmark_title = benchmark[benchmark.columns[0]].name
+
+            # Update template with benchmark information
+            if benchmark_title is None:
+                benchmark_title = "Benchmark"
+            tpl = tpl.replace(
+                "{{benchmark_title}}", f"Benchmark is {benchmark_title.upper()} | "
+            )
+            # Store original benchmark before any alignment for accurate EOY calculations
+            if isinstance(benchmark, str):
+                # Download the full benchmark data
+                benchmark_original = _utils.download_returns(benchmark)
+                if rf != 0:
+                    benchmark_original = _utils.to_excess_returns(
+                        benchmark_original, rf
+                    )
+            elif isinstance(benchmark, _pd.Series):
+                benchmark_original = benchmark.copy()
+            else:
+                benchmark_original = benchmark
+            # Prepare benchmark data to match returns index and risk-free rate
+            benchmark = _utils._prepare_benchmark(benchmark, returns.index, rf)
+            # Align dates between returns and benchmark if requested
+            if match_dates is True:
+                returns, benchmark = _match_dates(returns, benchmark)
+        else:
+            benchmark_title = None
+            benchmark_original = None
+            tpl = tpl.replace("{{benchmark_title}}", "")
+
+        # Format date range for display in template
+        date_range = returns.index.strftime("%e %b, %Y")
+        tpl = tpl.replace("{{date_range}}", date_range[0] + " - " + date_range[-1])
+        tpl = tpl.replace("{{title}}", title)
+        tpl = tpl.replace("{{v}}", __version__)
+
+        # Set names for data series to be used in charts and tables
+        if benchmark is not None:
+            benchmark.name = benchmark_title
+        if isinstance(returns, _pd.Series):
+            returns.name = strategy_title
+        elif isinstance(returns, _pd.DataFrame):
+            returns.columns = strategy_title
+
+        # Generate comprehensive performance metrics table
+        mtrx = metrics(
+            returns=returns,
+            benchmark=benchmark,
+            rf=rf,
+            display=False,
+            mode="full",
+            sep=True,
+            internal="True",
+            compounded=compounded,
+            periods_per_year=periods_per_year,
+            prepare_returns=False,
+            benchmark_title=benchmark_title,
+            strategy_title=strategy_title,
+        )[2:]
+
+        # Format metrics table for markdown display
+        mtrx.index.name = "Metric"
+        tpl = tpl.replace("{{metrics}}", _markdown_table(mtrx))
+
+        # Generate drawdown analysis table
+        if isinstance(returns, _pd.Series):
+            # Calculate drawdown series and get worst drawdown periods
+            dd = _stats.to_drawdown_series(returns)
+            dd_info = _stats.drawdown_details(dd).sort_values(
+                by="max drawdown", ascending=True
+            )[:10]
+            dd_info = dd_info[["start", "end", "max drawdown", "days"]]
+            dd_info.columns = ["Started", "Recovered", "Drawdown", "Days"]
+            tpl = tpl.replace("{{dd_info}}", _markdown_table(dd_info, False))
+        elif isinstance(returns, _pd.DataFrame):
+            # Handle multiple strategy columns
+            dd_info_list = []
+            for col in returns.columns:
+                dd = _stats.to_drawdown_series(returns[col])
+                dd_info = _stats.drawdown_details(dd).sort_values(
+                    by="max drawdown", ascending=True
+                )[:10]
+                dd_info = dd_info[["start", "end", "max drawdown", "days"]]
+                dd_info.columns = ["Started", "Recovered", "Drawdown", "Days"]
+                dd_info_list.append(_markdown_table(dd_info, False))
+
+            # Combine all drawdown tables with headers
+            dd_md_table = ""
+            for md_str, col in zip(dd_info_list, returns.columns):
+                dd_md_table = dd_md_table + f"### {col}\n\n" + md_str + "\n\n"
+            tpl = tpl.replace("{{dd_info}}", dd_md_table)
+
+        # Get active returns setting for plots
+        active = kwargs.get("active_returns", False)
+
+        # Generate all the performance plots and embed them in the markdown
+        # plots
+        figfile = _utils._file_stream()
+        _plots.returns(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(8, 5),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            compound=compounded,
+            prepare_returns=False,
+        )
+        tpl = tpl.replace("{{returns}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Log returns plot
+        figfile = _utils._file_stream()
+        _plots.log_returns(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(8, 4),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            compound=compounded,
+            prepare_returns=False,
+        )
+        tpl = tpl.replace("{{log_returns}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Volatility-matched returns plot (only if benchmark exists)
+        if benchmark is not None:
+            figfile = _utils._file_stream()
+            _plots.returns(
+                returns,
+                benchmark,
+                match_volatility=True,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                subtitle=False,
+                savefig={"fname": figfile, "format": figfmt},
+                show=False,
+                ylabel="",
+                compound=compounded,
+                prepare_returns=False,
+            )
+            tpl = tpl.replace(
+                "{{vol_returns}}", _embed_markdown_figure(figfile, figfmt)
+            )
+
+        # Yearly returns comparison chart
+        figfile = _utils._file_stream()
+        _plots.yearly_returns(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(8, 4),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            compounded=compounded,
+            prepare_returns=False,
+        )
+        tpl = tpl.replace("{{eoy_returns}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Returns distribution histogram
+        figfile = _utils._file_stream()
+        _plots.histogram(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(7, 4),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            compounded=compounded,
+            prepare_returns=False,
+        )
+        tpl = tpl.replace("{{monthly_dist}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Daily returns scatter plot
+        figfile = _utils._file_stream()
+        _plots.daily_returns(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(8, 3),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            prepare_returns=False,
+            active=active,
+        )
+        tpl = tpl.replace("{{daily_returns}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Rolling beta analysis (only if benchmark exists)
+        if benchmark is not None:
+            figfile = _utils._file_stream()
+            _plots.rolling_beta(
+                returns,
+                benchmark,
+                grayscale=grayscale,
+                figsize=(8, 3),
+                subtitle=False,
+                window1=win_half_year,
+                window2=win_year,
+                savefig={"fname": figfile, "format": figfmt},
+                show=False,
+                ylabel="",
+                prepare_returns=False,
+            )
+            tpl = tpl.replace(
+                "{{rolling_beta}}", _embed_markdown_figure(figfile, figfmt)
+            )
+
+        # Rolling volatility analysis
+        figfile = _utils._file_stream()
+        _plots.rolling_volatility(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=(8, 3),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            period=win_half_year,
+            periods_per_year=win_year,
+        )
+        tpl = tpl.replace("{{rolling_vol}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Rolling Sharpe ratio analysis
+        figfile = _utils._file_stream()
+        _plots.rolling_sharpe(
+            returns,
+            grayscale=grayscale,
+            figsize=(8, 3),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            period=win_half_year,
+            periods_per_year=win_year,
+        )
+        tpl = tpl.replace("{{rolling_sharpe}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Rolling Sortino ratio analysis
+        figfile = _utils._file_stream()
+        _plots.rolling_sortino(
+            returns,
+            grayscale=grayscale,
+            figsize=(8, 3),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+            period=win_half_year,
+            periods_per_year=win_year,
+        )
+        tpl = tpl.replace(
+            "{{rolling_sortino}}", _embed_markdown_figure(figfile, figfmt)
+        )
+
+        # Drawdown periods analysis
+        figfile = _utils._file_stream()
+        if isinstance(returns, _pd.Series):
+            _plots.drawdowns_periods(
+                returns,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                subtitle=False,
+                title=returns.name,
+                savefig={"fname": figfile, "format": figfmt},
+                show=False,
+                ylabel="",
+                compounded=compounded,
+                prepare_returns=False,
+            )
+            tpl = tpl.replace("{{dd_periods}}", _embed_markdown_figure(figfile, figfmt))
+        elif isinstance(returns, _pd.DataFrame):
+            # Handle multiple strategy columns
+            embed = []
+            for col in returns.columns:
+                _plots.drawdowns_periods(
+                    returns[col],
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    title=col,
+                    savefig={"fname": figfile, "format": figfmt},
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+                embed.append(figfile)
+            tpl = tpl.replace("{{dd_periods}}", _embed_markdown_figure(embed, figfmt))
+
+        # Underwater (drawdown) plot
+        figfile = _utils._file_stream()
+        _plots.drawdown(
+            returns,
+            grayscale=grayscale,
+            figsize=(8, 3),
+            subtitle=False,
+            savefig={"fname": figfile, "format": figfmt},
+            show=False,
+            ylabel="",
+        )
+        tpl = tpl.replace("{{dd_plot}}", _embed_markdown_figure(figfile, figfmt))
+
+        # Monthly returns heatmap
+        figfile = _utils._file_stream()
+        if isinstance(returns, _pd.Series):
+            _plots.monthly_heatmap(
+                returns,
+                benchmark,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                cbar=False,
+                returns_label=returns.name,
+                savefig={"fname": figfile, "format": figfmt},
+                show=False,
+                ylabel="",
+                compounded=compounded,
+                active=active,
+            )
+            tpl = tpl.replace(
+                "{{monthly_heatmap}}", _embed_markdown_figure(figfile, figfmt)
+            )
+        elif isinstance(returns, _pd.DataFrame):
+            # Handle multiple strategy columns
+            embed = []
+            for col in returns.columns:
+                _plots.monthly_heatmap(
+                    returns[col],
+                    benchmark,
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    cbar=False,
+                    returns_label=col,
+                    savefig={"fname": figfile, "format": figfmt},
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    active=active,
+                )
+                embed.append(figfile)
+            tpl = tpl.replace(
+                "{{monthly_heatmap}}", _embed_markdown_figure(embed, figfmt)
+            )
+
+        # Returns distribution analysis
+        figfile = _utils._file_stream()
+
+        if isinstance(returns, _pd.Series):
+            _plots.distribution(
+                returns,
+                grayscale=grayscale,
+                figsize=(8, 4),
+                subtitle=False,
+                title=returns.name,
+                savefig={"fname": figfile, "format": figfmt},
+                show=False,
+                ylabel="",
+                compounded=compounded,
+                prepare_returns=False,
+            )
+            tpl = tpl.replace(
+                "{{returns_dist}}", _embed_markdown_figure(figfile, figfmt)
+            )
+        elif isinstance(returns, _pd.DataFrame):
+            # Handle multiple strategy columns
+            embed = []
+            for col in returns.columns:
+                _plots.distribution(
+                    returns[col],
+                    grayscale=grayscale,
+                    figsize=(8, 4),
+                    subtitle=False,
+                    title=col,
+                    savefig={"fname": figfile, "format": figfmt},
+                    show=False,
+                    ylabel="",
+                    compounded=compounded,
+                    prepare_returns=False,
+                )
+                embed.append(figfile)
+            tpl = tpl.replace("{{returns_dist}}", _embed_markdown_figure(embed, figfmt))
+
+        # Clean up any remaining template placeholders
+        tpl = _regex.sub(r"\{\{(.*?)\}\}", "", tpl)
+
+        # Handle output
+        if output is None:
+            return tpl
+
+        # Write markdown content to specified output file
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(tpl)
+    finally:
+        # Restore original backend
+        _plotting_backend.set_backend(original_backend)
 
 
 def full(
@@ -2456,9 +2987,9 @@ def _calc_dd(df, display=True, as_pct=False):
                 "max drawdown"
             ].values[0]
             / 100,
-            "Max DD Date": bench_dd.sort_values(
-                by="max drawdown", ascending=True
-            )["valley"].values[0],
+            "Max DD Date": bench_dd.sort_values(by="max drawdown", ascending=True)[
+                "valley"
+            ].values[0],
             "Max DD Period Start": bench_dd.sort_values(
                 by="max drawdown", ascending=True
             )["start"].values[0],
@@ -2531,6 +3062,77 @@ def _html_table(obj, showindex="default"):
     return obj
 
 
+def _markdown_table(obj, showindex="default"):
+    """
+    Convert DataFrame to markdown table format for report generation.
+
+    This helper function converts pandas DataFrames to clean markdown table format
+    suitable for embedding in markdown reports.
+
+    Parameters
+    ----------
+    obj : pd.DataFrame
+        DataFrame to convert to markdown table
+    showindex : str or bool, default "default"
+        Whether to show the DataFrame index in the table.
+        "default" uses tabulate's default behavior
+
+    Returns
+    -------
+    str
+        Markdown string containing the formatted table
+    """
+    return _tabulate(
+        obj, headers="keys", tablefmt="pipe", floatfmt=".2f", showindex=showindex
+    )
+
+
+def _embed_markdown_figure(figfiles, figfmt, embed_images=True):
+    """
+    Embed matplotlib figures in markdown format for reports.
+
+    This helper function converts matplotlib figure objects to embedded
+    markdown format suitable for inclusion in markdown reports. It encodes
+    images as base64 data URIs.
+
+    Parameters
+    ----------
+    figfiles : io.StringIO or list of io.StringIO
+        File-like objects containing figure data. Can be single figure
+        or list of figures for multiple plots
+    figfmt : str
+        Format for the figures ('svg', 'png', 'jpg', etc.)
+    embed_images : bool, default True
+        Whether to embed images as base64 (currently only True is supported)
+
+    Returns
+    -------
+    str
+        Markdown string with embedded figure(s) ready for inclusion in report
+    """
+    # Handle multiple figures
+    if isinstance(figfiles, list):
+        embed_strings = []
+        for figfile in figfiles:
+            figbytes = figfile.getvalue()
+            # For all formats in markdown, encode as base64 data URI
+            data_uri = _b64encode(figbytes).decode()
+            if figfmt == "svg":
+                embed_strings.append(f"![chart](data:image/svg+xml;base64,{data_uri})")
+            else:
+                embed_strings.append(f"![chart](data:image/{figfmt};base64,{data_uri})")
+        return "\n".join(embed_strings)
+    else:
+        # Handle single figure
+        figbytes = figfiles.getvalue()
+        # For all formats in markdown, encode as base64 data URI
+        data_uri = _b64encode(figbytes).decode()
+        if figfmt == "svg":
+            return f"![chart](data:image/svg+xml;base64,{data_uri})"
+        else:
+            return f"![chart](data:image/{figfmt};base64,{data_uri})"
+
+
 def _download_html(html, filename="quantstats-tearsheet.html"):
     """
     Generate JavaScript code to download HTML content in browser.
@@ -2566,9 +3168,7 @@ def _download_html(html, filename="quantstats-tearsheet.html"):
     a.download="{{filename}}";
     a.hidden=true;document.body.appendChild(a);
     a.innerHTML="download report";
-    a.click();</script>""".replace(
-            "\n", ""
-        ),
+    a.click();</script>""".replace("\n", ""),
     )
 
     # Insert HTML content and clean up formatting
@@ -2607,9 +3207,7 @@ def _open_html(html):
         " ",
         """<script>
     var win=window.open();win.document.body.innerHTML='{{html}}';
-    </script>""".replace(
-            "\n", ""
-        ),
+    </script>""".replace("\n", ""),
     )
 
     # Insert HTML content and clean up formatting
