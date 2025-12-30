@@ -236,18 +236,46 @@ Install using ``conda``:
 
     $ conda install -c ranaroussi quantstats
 
+Development (uv)
+----------------
+
+.. code:: bash
+
+    $ uv sync --extra dev
+    $ uv run pytest
+
+Plotting backend
+----------------
+
+By default, QuantStats uses the hvPlot backend. To switch to the legacy
+Matplotlib/Seaborn backend, set the environment variable:
+
+.. code:: bash
+
+    $ QS_PLOT_BACKEND=matplotlib python your_script.py
+
+To install optional Matplotlib/Seaborn dependencies with uv:
+
+.. code:: bash
+
+    $ uv sync --extra dev --extra mpl
+
 
 Requirements
 ------------
 
-* `Python <https://www.python.org>`_ >= 3.5+
-* `pandas <https://github.com/pydata/pandas>`_ (tested to work with >=0.24.0)
-* `numpy <http://www.numpy.org>`_ >= 1.15.0
-* `scipy <https://www.scipy.org>`_ >= 1.2.0
-* `matplotlib <https://matplotlib.org>`_ >= 3.0.0
-* `seaborn <https://seaborn.pydata.org>`_ >= 0.9.0
-* `tabulate <https://bitbucket.org/astanin/python-tabulate>`_ >= 0.8.0
-* `yfinance <https://github.com/ranaroussi/yfinance>`_ >= 0.1.38
+* `Python <https://www.python.org>`_ >= 3.8
+* `pandas <https://github.com/pydata/pandas>`_ >= 1.5.0
+* `numpy <http://www.numpy.org>`_ >= 1.21.0
+* `scipy <https://www.scipy.org>`_ >= 1.7.0
+* `matplotlib <https://matplotlib.org>`_ >= 3.3.0 (optional, matplotlib backend)
+* `seaborn <https://seaborn.pydata.org>`_ >= 0.11.0 (optional, matplotlib backend)
+* `tabulate <https://bitbucket.org/astanin/python-tabulate>`_ >= 0.8.9
+* `yfinance <https://github.com/ranaroussi/yfinance>`_ >= 0.2.65
+* `python-dateutil <https://github.com/dateutil/dateutil>`_ >= 2.8.0
+* `packaging <https://github.com/pypa/packaging>`_ >= 20.0
+* `hvplot <https://hvplot.holoviz.org>`_ >= 0.8.0
+* `beautifulsoup4 <https://www.crummy.com/software/BeautifulSoup/>`_ >= 4.9.0
 * `plotly <https://plot.ly/>`_ >= 3.4.1 (optional, for using ``plots.to_plotly()``)
 
 Questions?
