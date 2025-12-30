@@ -25,8 +25,9 @@ __author__ = "Ran Aroussi"
 
 from . import stats, utils, plots, reports
 from ._plotting import backend as _plotting_backend
+from .reports import html, markdown
 
-__all__ = ["stats", "plots", "reports", "utils", "extend_pandas"]
+__all__ = ["stats", "plots", "reports", "utils", "extend_pandas", "html", "markdown"]
 
 # try automatic matplotlib inline (only for matplotlib backend)
 utils._in_notebook(matplotlib_inline=_plotting_backend.is_matplotlib())
@@ -149,6 +150,8 @@ def extend_pandas():
     _po.plot_monthly_heatmap = plots.monthly_heatmap  # type: ignore[attr-defined]
 
     _po.metrics = reports.metrics  # type: ignore[attr-defined]
+    _po.plot_html = reports.html  # type: ignore[attr-defined]
+    _po.plot_markdown = reports.markdown  # type: ignore[attr-defined]
 
 
 # extend_pandas()
