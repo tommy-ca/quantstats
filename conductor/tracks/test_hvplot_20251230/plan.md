@@ -17,10 +17,10 @@
 
 ## Phase 3: E2E Tests for HTML Reports
 
-- [ ] Task: Create E2E test for `qs.reports.html()` with hvPlot
-  - [ ] Write Tests (Red Phase) - Verify DOM presence of Bokeh markers
+- [~] Task: Create E2E test for `qs.reports.html()` with hvPlot
+  - [x] Write Tests (Red Phase) - Verify DOM presence of Bokeh markers 6c14420
   - [ ] Verify implementation (Green Phase)
-- [ ] Task: Verify inclusion of Bokeh/HoloViews runtime scripts in output
-  - [ ] Write Tests
-  - [ ] Verify template contains necessary tags
+- [x] Task: Verify inclusion of Bokeh/HoloViews runtime scripts in output 6c14420
+  - [x] Write Tests 6c14420
+  - [x] Verify template contains necessary tags 6c14420
 - [ ] Task: Conductor - User Manual Verification 'E2E Tests for HTML Reports' (Protocol in workflow.md)
