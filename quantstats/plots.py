@@ -18,11 +18,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from pandas.plotting import register_matplotlib_converters as _rmc
+from quantstats._plotting import backend as _backend
 
-    _rmc()
-except ImportError:
-    pass
+if _backend.is_matplotlib():
+    try:
+        from pandas.plotting import register_matplotlib_converters as _rmc
+
+        _rmc()
+    except ImportError:
+        pass
+
+set_backend = _backend.set_backend
+get_backend = _backend.get_backend
 
 from quantstats._plotting.wrappers import *

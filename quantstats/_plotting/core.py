@@ -18,41 +18,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import matplotlib.pyplot as _plt
-
-# Set default font to Arial, fall back gracefully if not available
-try:
-    _plt.rcParams["font.family"] = "Arial"
-except (KeyError, ValueError, OSError):
-    pass
-
-import matplotlib.dates as _mdates
-from matplotlib.ticker import (
-    FormatStrFormatter as _FormatStrFormatter,
-    FuncFormatter as _FuncFormatter,
-)
-
 import pandas as _pd
 import numpy as _np
-import seaborn as _sns
 from .. import stats as _stats
 from .._compat import safe_resample
 
-# Configure seaborn theme with custom styling
-_sns.set_theme(
-    font_scale=1.1,
-    rc={
-        "figure.figsize": (10, 6),
-        "axes.facecolor": "white",
-        "figure.facecolor": "white",
-        "grid.color": "#dddddd",
-        "grid.linewidth": 0.5,
-        "lines.linewidth": 1.5,
-        "text.color": "#333333",
-        "xtick.color": "#666666",
-        "ytick.color": "#666666",
-    },
-)
+_plt = None
+_mdates = None
+_FormatStrFormatter = None
+_FuncFormatter = None
+_sns = None
+
+
+def _ensure_mpl():
+    global _plt, _mdates, _FormatStrFormatter, _FuncFormatter, _sns
+    if _plt is not None:
+        return
+    try:
+        import matplotlib.pyplot as _plt_mod
+        import matplotlib.dates as _mdates_mod
+        from matplotlib.ticker import (
+            FormatStrFormatter as _FormatStrFormatter_mod,
+            FuncFormatter as _FuncFormatter_mod,
+        )
+    except ImportError as exc:
+        raise ImportError(
+            "Matplotlib is required for the matplotlib plotting backend. "
+            "Install quantstats[mpl] or set QS_PLOT_BACKEND=hvplot."
+        ) from exc
+    try:
+        import seaborn as _sns_mod
+    except ImportError as exc:
+        raise ImportError(
+            "Seaborn is required for the matplotlib plotting backend. "
+            "Install quantstats[mpl] or set QS_PLOT_BACKEND=hvplot."
+        ) from exc
+
+    _plt = _plt_mod
+    _mdates = _mdates_mod
+    _FormatStrFormatter = _FormatStrFormatter_mod
+    _FuncFormatter = _FuncFormatter_mod
+    _sns = _sns_mod
+
+    # Set default font to Arial, fall back gracefully if not available
+    try:
+        _plt.rcParams["font.family"] = "Arial"
+    except (KeyError, ValueError, OSError):
+        pass
+
+    # Configure seaborn theme with custom styling
+    _sns.set_theme(
+        font_scale=1.1,
+        rc={
+            "figure.figsize": (10, 6),
+            "axes.facecolor": "white",
+            "figure.facecolor": "white",
+            "grid.color": "#dddddd",
+            "grid.linewidth": 0.5,
+            "lines.linewidth": 1.5,
+            "text.color": "#333333",
+            "xtick.color": "#666666",
+            "ytick.color": "#666666",
+        },
+    )
 
 # Color palettes for different chart styles
 _FLATUI_COLORS = [
@@ -172,6 +200,7 @@ def plot_returns_bars(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
     # Validate volatility matching requirements
     if match_volatility and benchmark is None:
         raise ValueError("match_volatility requires passing of " "benchmark.")
@@ -407,6 +436,7 @@ def plot_timeseries(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     colors, ls, alpha = _get_colors(grayscale)
 
@@ -632,6 +662,7 @@ def plot_histogram(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     # colors = ['#348dc1', '#003366', 'red']
     # if grayscale:
@@ -893,6 +924,7 @@ def plot_rolling_stats(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     colors, _, _ = _get_colors(grayscale)
 
@@ -1090,6 +1122,7 @@ def plot_rolling_beta(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     colors, _, _ = _get_colors(grayscale)
 
@@ -1293,6 +1326,7 @@ def plot_longest_drawdowns(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     colors = ["#348dc1", "#003366", "red"]
     if grayscale:
@@ -1455,6 +1489,7 @@ def plot_distribution(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     colors = _FLATUI_COLORS
     if grayscale:
@@ -1626,6 +1661,7 @@ def plot_table(
     matplotlib.figure.Figure or None
         Figure object if show=False, otherwise None
     """
+    _ensure_mpl()
 
     # Set column names if provided
     if columns is not None:

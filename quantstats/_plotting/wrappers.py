@@ -19,16 +19,9 @@
 # limitations under the License.
 
 import warnings
-import matplotlib.pyplot as _plt
-from matplotlib.ticker import (
-    StrMethodFormatter as _StrMethodFormatter,
-    FuncFormatter as _FuncFormatter,
-)
-
 import numpy as _np
 import pandas as _pd
 from .._compat import safe_resample
-import seaborn as _sns
 
 from .. import (
     stats as _stats,
@@ -36,6 +29,42 @@ from .. import (
 )
 
 from . import core as _core
+from . import backend as _backend
+from . import hvplot_backend as _hvplot
+
+_plt = None
+_sns = None
+_StrMethodFormatter = None
+_FuncFormatter = None
+
+
+def _ensure_mpl():
+    global _plt, _sns, _StrMethodFormatter, _FuncFormatter
+    if _plt is not None:
+        return
+    try:
+        import matplotlib.pyplot as _plt_mod
+        from matplotlib.ticker import (
+            StrMethodFormatter as _StrMethodFormatter_mod,
+            FuncFormatter as _FuncFormatter_mod,
+        )
+    except ImportError as exc:
+        raise ImportError(
+            "Matplotlib is required for the matplotlib plotting backend. "
+            "Install quantstats[mpl] or set QS_PLOT_BACKEND=hvplot."
+        ) from exc
+    try:
+        import seaborn as _sns_mod
+    except ImportError as exc:
+        raise ImportError(
+            "Seaborn is required for the matplotlib plotting backend. "
+            "Install quantstats[mpl] or set QS_PLOT_BACKEND=hvplot."
+        ) from exc
+
+    _plt = _plt_mod
+    _sns = _sns_mod
+    _StrMethodFormatter = _StrMethodFormatter_mod
+    _FuncFormatter = _FuncFormatter_mod
 
 
 _FLATUI_COLORS = ["#fedd78", "#348dc1", "#af4b64", "#4fa487", "#9b59b6", "#808080"]
@@ -70,6 +99,7 @@ def to_plotly(fig):
     This function requires the plotly library to be installed. If plotly is not
     available, the original matplotlib figure is returned unchanged.
     """
+    _ensure_mpl()
     # Return original figure if plotly not available
     if not _HAS_PLOTLY:
         return fig
@@ -139,6 +169,22 @@ def snapshot(
     2. Drawdown periods
     3. Daily returns distribution
     """
+    if _backend.is_hvplot():
+        return _hvplot.snapshot(
+            returns,
+            grayscale=grayscale,
+            figsize=figsize,
+            title=title,
+            fontname=fontname,
+            lw=lw,
+            mode=mode,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+            log_scale=log_scale,
+            **kwargs,
+        )
+    _ensure_mpl()
     # Extract strategy column name from kwargs
     strategy_colname = kwargs.get("strategy_col", "Strategy")
 
@@ -425,6 +471,21 @@ def earnings(
     Shows portfolio value over time starting from the specified balance.
     Highlights the maximum portfolio value achieved during the period.
     """
+    if _backend.is_hvplot():
+        return _hvplot.earnings(
+            returns,
+            start_balance=start_balance,
+            mode=mode,
+            grayscale=grayscale,
+            figsize=figsize,
+            title=title,
+            fontname=fontname,
+            lw=lw,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Select color scheme and transparency based on grayscale preference
     colors = _GRAYSCALE_COLORS if grayscale else _FLATUI_COLORS
     alpha = 0.5 if grayscale else 0.8
@@ -604,6 +665,24 @@ def returns(
     Creates a time series plot of cumulative returns. If benchmark is provided,
     both series are plotted for comparison.
     """
+    if _backend.is_hvplot():
+        return _hvplot.returns(
+            returns,
+            benchmark=benchmark,
+            grayscale=grayscale,
+            figsize=figsize,
+            fontname=fontname,
+            lw=lw,
+            match_volatility=match_volatility,
+            compound=compound,
+            resample=resample,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Build title based on parameters
     title = "Cumulative Returns" if compound else "Returns"
     if benchmark is not None:
@@ -703,6 +782,24 @@ def log_returns(
     Similar to returns() but uses logarithmic scale which is better for visualizing
     exponential growth and making percentage changes more comparable across time.
     """
+    if _backend.is_hvplot():
+        return _hvplot.log_returns(
+            returns,
+            benchmark=benchmark,
+            grayscale=grayscale,
+            figsize=figsize,
+            fontname=fontname,
+            lw=lw,
+            match_volatility=match_volatility,
+            compound=compound,
+            resample=resample,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Build title with log scale indication
     title = "Cumulative Returns" if compound else "Returns"
     if benchmark is not None:
@@ -802,6 +899,23 @@ def daily_returns(
     Shows daily return variations over time. If active=True, displays the difference
     between portfolio returns and benchmark returns.
     """
+    if _backend.is_hvplot():
+        return _hvplot.daily_returns(
+            returns,
+            benchmark,
+            grayscale=grayscale,
+            figsize=figsize,
+            fontname=fontname,
+            lw=lw,
+            log_scale=log_scale,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+            active=active,
+        )
+    _ensure_mpl()
     # Prepare returns data if requested
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
@@ -901,6 +1015,26 @@ def yearly_returns(
     -----
     Aggregates returns by year and displays as bars. Shows mean return as horizontal line.
     """
+    if _backend.is_hvplot():
+        return _hvplot.yearly_returns(
+            returns,
+            benchmark=benchmark,
+            fontname=fontname,
+            grayscale=grayscale,
+            hlw=hlw,
+            hlcolor=hlcolor,
+            hllabel=hllabel,
+            match_volatility=match_volatility,
+            log_scale=log_scale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            compounded=compounded,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Set plot title
     title = "EOY Returns"
     if benchmark is not None:
@@ -996,6 +1130,21 @@ def distribution(
     Shows the distribution of returns with histogram bars and overlaid density curve.
     Helpful for understanding return characteristics and identifying outliers.
     """
+    if _backend.is_hvplot():
+        return _hvplot.distribution(
+            returns,
+            fontname=fontname,
+            grayscale=grayscale,
+            ylabel=ylabel,
+            figsize=figsize,
+            subtitle=subtitle,
+            compounded=compounded,
+            savefig=savefig,
+            show=show,
+            title=title,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Prepare returns data if requested
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
@@ -1072,6 +1221,22 @@ def histogram(
     Resamples returns to specified frequency and plots distribution histogram.
     Useful for analyzing return patterns at different time horizons.
     """
+    if _backend.is_hvplot():
+        return _hvplot.histogram(
+            returns,
+            benchmark=benchmark,
+            resample=resample,
+            fontname=fontname,
+            grayscale=grayscale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            compounded=compounded,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Prepare returns data if requested
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
@@ -1164,6 +1329,23 @@ def drawdown(
     Shows underwater plot of drawdowns with filled area. Includes average drawdown
     line as reference. Useful for understanding portfolio risk and recovery periods.
     """
+    if _backend.is_hvplot():
+        return _hvplot.drawdown(
+            returns,
+            grayscale=grayscale,
+            figsize=figsize,
+            fontname=fontname,
+            lw=lw,
+            log_scale=log_scale,
+            match_volatility=match_volatility,
+            compound=compound,
+            ylabel=ylabel,
+            resample=resample,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Convert returns to drawdown series
     dd = _stats.to_drawdown_series(returns)
 
@@ -1254,6 +1436,24 @@ def drawdowns_periods(
     Identifies and plots the longest drawdown periods separately. Each period is
     shown as a different colored line for easy comparison of severity and duration.
     """
+    if _backend.is_hvplot():
+        return _hvplot.drawdowns_periods(
+            returns,
+            periods=periods,
+            lw=lw,
+            log_scale=log_scale,
+            fontname=fontname,
+            grayscale=grayscale,
+            title=title,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            compounded=compounded,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Prepare returns data if requested
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
@@ -1341,6 +1541,25 @@ def rolling_beta(
     Shows how portfolio beta (systematic risk) changes over time relative to benchmark.
     Uses two different window sizes to show short-term and long-term beta trends.
     """
+    if _backend.is_hvplot():
+        return _hvplot.rolling_beta(
+            returns,
+            benchmark,
+            window1=window1,
+            window1_label=window1_label,
+            window2=window2,
+            window2_label=window2_label,
+            lw=lw,
+            fontname=fontname,
+            grayscale=grayscale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+            prepare_returns=prepare_returns,
+        )
+    _ensure_mpl()
     # Prepare returns data if requested
     if prepare_returns:
         returns = _utils._prepare_returns(returns)
@@ -1427,6 +1646,23 @@ def rolling_volatility(
     Shows rolling volatility (standard deviation) over time. Includes mean volatility
     as horizontal reference line. Useful for understanding risk patterns over time.
     """
+    if _backend.is_hvplot():
+        return _hvplot.rolling_volatility(
+            returns,
+            benchmark=benchmark,
+            period=period,
+            period_label=period_label,
+            periods_per_year=periods_per_year,
+            lw=lw,
+            fontname=fontname,
+            grayscale=grayscale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Calculate rolling volatility for returns
     returns = _stats.rolling_volatility(returns, period, periods_per_year)
 
@@ -1517,6 +1753,24 @@ def rolling_sharpe(
     Shows rolling Sharpe ratio (risk-adjusted returns) over time. Higher values
     indicate better risk-adjusted performance. Includes mean Sharpe as reference.
     """
+    if _backend.is_hvplot():
+        return _hvplot.rolling_sharpe(
+            returns,
+            benchmark=benchmark,
+            rf=rf,
+            period=period,
+            period_label=period_label,
+            periods_per_year=periods_per_year,
+            lw=lw,
+            fontname=fontname,
+            grayscale=grayscale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Calculate rolling Sharpe ratio for returns
     returns = _stats.rolling_sharpe(
         returns,
@@ -1614,6 +1868,24 @@ def rolling_sortino(
     Similar to Sharpe but only considers downside volatility. Higher values indicate
     better downside-adjusted performance.
     """
+    if _backend.is_hvplot():
+        return _hvplot.rolling_sortino(
+            returns,
+            benchmark=benchmark,
+            rf=rf,
+            period=period,
+            period_label=period_label,
+            periods_per_year=periods_per_year,
+            lw=lw,
+            fontname=fontname,
+            grayscale=grayscale,
+            figsize=figsize,
+            ylabel=ylabel,
+            subtitle=subtitle,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Calculate rolling Sortino ratio for returns
     returns = _stats.rolling_sortino(returns, rf, period, True, periods_per_year)
 
@@ -1708,6 +1980,25 @@ def monthly_heatmap(
     Green indicates positive returns, red indicates negative returns. Useful for
     identifying seasonal patterns and performance consistency.
     """
+    if _backend.is_hvplot():
+        return _hvplot.monthly_heatmap(
+            returns,
+            benchmark=benchmark,
+            annot_size=annot_size,
+            figsize=figsize,
+            cbar=cbar,
+            square=square,
+            returns_label=returns_label,
+            compounded=compounded,
+            eoy=eoy,
+            grayscale=grayscale,
+            fontname=fontname,
+            ylabel=ylabel,
+            savefig=savefig,
+            show=show,
+            active=active,
+        )
+    _ensure_mpl()
     # colors, ls, alpha = _core._get_colors(grayscale)
     # Select color map based on grayscale preference
     cmap = "gray" if grayscale else "RdYlGn"
@@ -1898,6 +2189,22 @@ def monthly_returns(
     This is a convenience wrapper around monthly_heatmap() with commonly used
     default parameters for displaying monthly returns.
     """
+    if _backend.is_hvplot():
+        return _hvplot.monthly_returns(
+            returns,
+            annot_size=annot_size,
+            figsize=figsize,
+            cbar=cbar,
+            square=square,
+            compounded=compounded,
+            eoy=eoy,
+            grayscale=grayscale,
+            fontname=fontname,
+            ylabel=ylabel,
+            savefig=savefig,
+            show=show,
+        )
+    _ensure_mpl()
     # Call monthly_heatmap with provided parameters
     return monthly_heatmap(
         returns=returns,
