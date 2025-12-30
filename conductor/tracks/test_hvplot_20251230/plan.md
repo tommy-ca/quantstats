@@ -1,9 +1,9 @@
 # Plan: Unit tests and E2E tests for hvPlot migrations
 
-## Phase 1: Test Infrastructure
+## Phase 1: Test Infrastructure [checkpoint: db36668]
 
 - [x] Task: Install test dependencies (`beautifulsoup4` for DOM parsing) 7e09295
-- [ ] Task: Conductor - User Manual Verification 'Test Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Test Infrastructure' (Protocol in workflow.md) db36668
 
 ## Phase 2: Unit Tests for hvPlot Integration
 
