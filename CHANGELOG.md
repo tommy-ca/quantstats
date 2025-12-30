@@ -1,6 +1,17 @@
 Changelog
 ===========
 
+0.0.78
+------
+
+- Added new Markdown Tearsheet Report feature:
+  - Generate comprehensive performance reports in markdown format via ``qs.reports.markdown()``
+  - Perfect for GitHub documentation, READMEs, and static site generators
+  - Supports self-contained files with Base64-embedded images
+  - Automatic backend switching for compatibility with both matplotlib and hvPlot
+  - Full pandas integration via ``returns.plot_markdown()``
+  - Approximately 50% smaller file sizes compared to HTML reports with equivalent content
+
 0.0.77
 ------
 

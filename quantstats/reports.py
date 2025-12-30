@@ -1053,6 +1053,15 @@ def markdown(
     -------
     str or None
         Markdown content string when output is None, None when saved to file
+
+    Examples
+    --------
+    >>> import quantstats as qs
+    >>> returns = qs.utils.download_returns('META')
+    >>> qs.reports.markdown(returns, benchmark='SPY', title='Meta vs SPY')
+    >>> # or using pandas integration
+    >>> qs.extend_pandas()
+    >>> returns.plot_markdown(benchmark='SPY')
     """
     # Force matplotlib backend for markdown reports
     original_backend = _plotting_backend.get_backend()

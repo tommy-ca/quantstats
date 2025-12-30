@@ -86,13 +86,14 @@ Output:
 Creating a report
 ~~~~~~~~~~~~~~~~~
 
-You can create 7 different report tearsheets:
+You can create 8 different report tearsheets:
 
 1. ``qs.reports.metrics(mode='basic|full", ...)`` - shows basic/full metrics
 2. ``qs.reports.plots(mode='basic|full", ...)`` - shows basic/full plots
 3. ``qs.reports.basic(...)`` - shows basic metrics and plots
 4. ``qs.reports.full(...)`` - shows full metrics and plots
 5. ``qs.reports.html(...)`` - generates a complete report as html
+6. ``qs.reports.markdown(...)`` - generates a complete report as markdown
 
 Let' create an html tearsheet
 
@@ -100,6 +101,12 @@ Let' create an html tearsheet
 
     (benchmark can be a pandas Series or ticker)
     qs.reports.html(stock, "SPY")
+
+You can also generate a markdown report (perfect for GitHub READMEs, etc.):
+
+.. code:: python
+
+    qs.reports.markdown(stock, "SPY")
 
 Output will generate something like this:
 
